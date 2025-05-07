@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Share2, BotMessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SocialSyncLogo } from '@/components/SocialSyncLogo';
+import { SocialSyncLogo } from '@/components/SocialSyncLogo'; // Component name can remain
 
 export function Header() {
   const pathname = usePathname();
@@ -19,7 +19,7 @@ export function Header() {
         <Link href="/" className="flex items-center gap-2 group">
           <SocialSyncLogo className="h-8 w-8 text-primary group-hover:text-[hsl(var(--primary)/0.8)] transition-colors" />
           <span className="text-2xl font-bold text-foreground group-hover:text-[hsl(var(--foreground)/0.8)] transition-colors">
-            SocialSync
+            Socialync
           </span>
         </Link>
         <nav className="flex items-center gap-6 text-sm font-medium">

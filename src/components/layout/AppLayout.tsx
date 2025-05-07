@@ -6,6 +6,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const currentYear = new Date().getFullYear();
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -13,7 +14,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {children}
       </main>
       <footer className="py-6 text-center text-muted-foreground text-sm">
-        © {new Date().getFullYear()} SocialSync. All rights reserved.
+        © {currentYear} Socialync. All rights reserved.
       </footer>
     </div>
   );
