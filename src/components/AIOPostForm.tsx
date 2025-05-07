@@ -60,7 +60,6 @@ export function AIOPostForm() {
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [videoFileName, setVideoFileName] = useState<string | null>(null);
   
-  // Date state needs to be handled carefully to avoid hydration issues if initialized with new Date() directly
   const [initialScheduledDate, setInitialScheduledDate] = useState<Date | undefined>(undefined);
   useEffect(() => {
     const tomorrow = new Date();
@@ -76,7 +75,7 @@ export function AIOPostForm() {
       hashtags: "",
       selectedPlatforms: [],
       isScheduled: false,
-      scheduledDate: undefined, // Will be set by useEffect
+      scheduledDate: undefined, 
       scheduledTime: "10:00",
     },
   });
@@ -114,7 +113,6 @@ export function AIOPostForm() {
       const scheduledDateTime = new Date(values.scheduledDate);
       scheduledDateTime.setHours(hours, minutes);
       postData.scheduledAt = scheduledDateTime;
-      // Here you would typically save the scheduled post
       console.log("Scheduling post:", postData);
       toast({
         title: "Post Scheduled!",
@@ -122,13 +120,11 @@ export function AIOPostForm() {
         variant: "default",
       });
     } else {
-      postData.scheduledAt = new Date(); // Post now
+      postData.scheduledAt = new Date(); 
       console.log("Posting now:", postData);
-      // Mock posting to platforms
       for (const platformId of values.selectedPlatforms) {
         const platform = PLATFORMS.find(p => p.id === platformId);
         if (platform) {
-          // In a real app, videoFile would be used here
           await postToPlatform(platform, videoFileName || "video.mp4", values.caption, postData.hashtags || []);
         }
       }
@@ -146,7 +142,6 @@ export function AIOPostForm() {
   const isScheduled = form.watch("isScheduled");
 
   if (!initialScheduledDate) {
-    // Render loading state or null until initialScheduledDate is set
     return <div className="text-center p-8">Loading form...</div>;
   }
 
@@ -191,7 +186,7 @@ export function AIOPostForm() {
           <FormField
             control={form.control}
             name="selectedPlatforms"
-            render={() => (
+            render={({ field }) => (
               <FormItem>
                 <div className="mb-4">
                   <FormLabel className="text-lg font-semibold flex items-center gap-2"><ListChecks className="w-5 h-5 text-primary" />Select Platforms</FormLabel>
@@ -200,50 +195,53 @@ export function AIOPostForm() {
                   </FormDescription>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                  {PLATFORMS.map((platform) => (
-                    <FormField
-                      key={platform.id}
-                      control={form.control}
-                      name="selectedPlatforms"
-                      render={({ field }) => {
-                        return (
-                          <FormItem
-                            className={cn(
-                              "flex flex-col items-center space-y-2 p-4 rounded-lg border transition-all cursor-pointer",
-                              field.value?.includes(platform.id)
-                                ? `border-primary bg-[hsl(var(--primary)/0.1)] shadow-md`
-                                : "border-[hsl(var(--border)/0.3)] hover:border-primary/70"
-                            )}
-                            onClick={() => {
-                              const currentValues = field.value || [];
-                              const newValue = currentValues.includes(platform.id)
-                                ? currentValues.filter((id) => id !== platform.id)
-                                : [...currentValues, platform.id];
-                              field.onChange(newValue);
+                  {PLATFORMS.map((platform) => {
+                    const isSelected = field.value?.includes(platform.id);
+                    const platformLabelId = `platform-label-${platform.id}`;
+                    return (
+                      <FormItem // This is now a layout component, not a RHF FormField
+                        key={platform.id}
+                        className={cn(
+                          "flex flex-col items-center space-y-2 p-4 rounded-lg border transition-all cursor-pointer",
+                          isSelected
+                            ? `border-primary bg-[hsl(var(--primary)/0.1)] shadow-md`
+                            : "border-[hsl(var(--border)/0.3)] hover:border-primary/70"
+                        )}
+                        onClick={() => {
+                          const currentValues = field.value || [];
+                          const newValue = isSelected
+                            ? currentValues.filter((id) => id !== platform.id)
+                            : [...currentValues, platform.id];
+                          field.onChange(newValue);
+                        }}
+                      >
+                        <platform.Icon className={cn("w-8 h-8", isSelected ? platform.textColorClass : 'text-muted-foreground')} />
+                        <FormLabel 
+                          id={platformLabelId}
+                          className={cn(
+                            "text-sm font-medium cursor-pointer", // Ensure label also has cursor-pointer
+                            isSelected ? 'text-primary' : 'text-foreground/80'
+                          )}
+                        >
+                          {platform.name}
+                        </FormLabel>
+                        <FormControl>
+                           <Switch
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                               const currentValues = field.value || [];
+                               const newValue = checked
+                                 ? [...currentValues, platform.id]
+                                 : currentValues.filter((id) => id !== platform.id);
+                               field.onChange(newValue);
                             }}
-                          >
-                            <platform.Icon className={cn("w-8 h-8", field.value?.includes(platform.id) ? platform.textColorClass : 'text-muted-foreground')} />
-                            <FormLabel className={cn("text-sm font-medium", field.value?.includes(platform.id) ? 'text-primary' : 'text-foreground/80')}>
-                              {platform.name}
-                            </FormLabel>
-                            <FormControl>
-                               <Switch
-                                checked={field.value?.includes(platform.id)}
-                                onCheckedChange={(checked) => {
-                                   const currentValues = field.value || [];
-                                   const newValue = checked
-                                     ? [...currentValues, platform.id]
-                                     : currentValues.filter((id) => id !== platform.id);
-                                   field.onChange(newValue);
-                                }}
-                                className="sr-only" // Visually hidden, interaction handled by FormItem click
-                               />
-                            </FormControl>
-                          </FormItem>
-                        );
-                      }}
-                    />
-                  ))}
+                            className="sr-only"
+                            aria-labelledby={platformLabelId}
+                           />
+                        </FormControl>
+                      </FormItem>
+                    );
+                  })}
                 </div>
                 <FormMessage className="mt-2" />
               </FormItem>
@@ -323,6 +321,7 @@ export function AIOPostForm() {
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
+                    aria-label="Schedule post switch"
                   />
                 </FormControl>
               </FormItem>
@@ -361,7 +360,7 @@ export function AIOPostForm() {
                           mode="single"
                           selected={field.value}
                           onSelect={field.onChange}
-                          disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))} // Disable past dates
+                          disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))} 
                           initialFocus
                         />
                       </PopoverContent>
