@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -5,14 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, CalendarDays, Loader2 } from 'lucide-react';
 import type { ScheduledPost, PlatformID } from '@/types';
 import { PLATFORMS } from '@/config/platforms';
 import { addMonths, subMonths, format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
-// Mock data - replace with actual data fetching
+// Mock data - replace with actual data fetching (user-specific if applicable)
 const MOCK_POSTS: ScheduledPost[] = [
   {
     id: '1',
@@ -32,24 +35,6 @@ const MOCK_POSTS: ScheduledPost[] = [
     platforms: ['instagram', 'facebook'],
     scheduledAt: new Date(new Date().setDate(new Date().getDate() + 5)),
   },
-  {
-    id: '3',
-    title: 'YouTube Product Review',
-    videoUrl: 'youtube_review.mp4',
-    caption: 'Reviewing the latest gadget!',
-    hashtags: ['#techreview', '#gadget'],
-    platforms: ['youtube'],
-    scheduledAt: new Date(new Date().setDate(new Date().getDate() + 10)),
-  },
-  {
-    id: '4',
-    title: 'Multi-platform launch',
-    videoUrl: 'launch.mp4',
-    caption: 'Big announcement coming soon!',
-    hashtags: ['#launch', '#exciting'],
-    platforms: ['twitter', 'facebook', 'instagram'],
-    scheduledAt: new Date(new Date().setDate(new Date().getDate() - 3)), // A post in the past
-  },
 ];
 
 const GlassCard: React.FC<React.PropsWithChildren<{ className?: string }>> = ({ children, className }) => (
@@ -60,23 +45,38 @@ const GlassCard: React.FC<React.PropsWithChildren<{ className?: string }>> = ({ 
 
 
 export default function CalendarPage() {
+  const { user, loadingAuth } = useAuth();
+  const router = useRouter();
+
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Simulate fetching data
-    setTimeout(() => {
-      setScheduledPosts(MOCK_POSTS);
-      setIsLoading(false);
-    }, 500);
-  }, []);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   
-  // Effect to set initial selectedDate after mount to avoid hydration mismatch
+  // Client-side only date initialization
   useEffect(() => {
     setSelectedDate(new Date());
   }, []);
+
+  useEffect(() => {
+    if (!loadingAuth && !user) {
+      router.push('/login?redirect=/calendar');
+    }
+  }, [user, loadingAuth, router]);
+
+  useEffect(() => {
+    if (user) { // Only fetch posts if user is authenticated
+      // Simulate fetching data
+      setTimeout(() => {
+        setScheduledPosts(MOCK_POSTS);
+        setIsLoadingPosts(false);
+      }, 500);
+    } else {
+      // If no user, clear posts and set loading to false (or handle as needed)
+      setScheduledPosts([]);
+      setIsLoadingPosts(false);
+    }
+  }, [user]); // Rerun when user state changes
 
 
   const daysInMonth = eachDayOfInterval({
@@ -99,7 +99,7 @@ export default function CalendarPage() {
   const handleDateSelect = (date?: Date) => {
     setSelectedDate(date);
     if (date) {
-      setCurrentMonth(date); // Navigate calendar to the selected date's month
+      setCurrentMonth(date); 
     }
   };
 
@@ -107,8 +107,24 @@ export default function CalendarPage() {
     return PLATFORMS.find(p => p.id === platformId)?.bgColorClass || 'bg-muted';
   };
   
-  if (typeof selectedDate === 'undefined' || isLoading) {
-    return <div className="flex justify-center items-center h-screen"><p>Loading calendar...</p></div>;
+  if (loadingAuth || (!user && !loadingAuth)) { // Show loader if auth is loading or if user is null (and not loading, meaning redirect is imminent)
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">
+          {loadingAuth ? "Checking your credentials..." : "Redirecting to login..."}
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoadingPosts || typeof selectedDate === 'undefined') {
+     return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Loading your calendar...</p>
+      </div>
+    );
   }
 
 
@@ -155,12 +171,16 @@ export default function CalendarPage() {
             <div
               key={idx}
               className={cn(
-                "p-2 min-h-[120px] border-r border-b border-[hsl(var(--border)/0.2)] transition-colors relative",
+                "p-2 min-h-[120px] border-r border-b border-[hsl(var(--border)/0.2)] transition-colors relative cursor-pointer",
                 isSameMonth(day, currentMonth) ? 'bg-background/50 hover:bg-background/80' : 'bg-muted/20 text-muted-foreground hover:bg-muted/30',
                 isSameDay(day, new Date()) && 'bg-accent/10',
-                isSameDay(day, selectedDate || new Date(0)) && 'ring-2 ring-primary ring-inset' // Highlight selected day
+                isSameDay(day, selectedDate || new Date(0)) && 'ring-2 ring-primary ring-inset' 
               )}
               onClick={() => handleDateSelect(day)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleDateSelect(day)}
+              aria-label={`Select date ${format(day, 'PPP')}`}
             >
               <span className={cn("absolute top-2 right-2 text-sm font-medium", isSameMonth(day, currentMonth) ? "text-foreground" : "text-muted-foreground/70")}>
                 {format(day, 'd')}
@@ -207,8 +227,8 @@ export default function CalendarPage() {
             }}
             components={{
               DayContent: ({ date }) => {
-                const dailyPosts = postsForDay(date as Date); // Type assertion needed as date can be undefined
                 if (!date) return <></>;
+                const dailyPosts = postsForDay(date); 
                 return (
                   <>
                     <span>{format(date, 'd')}</span>
