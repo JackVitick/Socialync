@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -5,7 +6,7 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
-  Form,
+  Form as ShadcnForm, // Aliased import
   FormControl,
   FormDescription,
   FormField,
@@ -125,14 +126,30 @@ export function AIOPostForm() {
       for (const platformId of values.selectedPlatforms) {
         const platform = PLATFORMS.find(p => p.id === platformId);
         if (platform) {
-          await postToPlatform(platform, videoFileName || "video.mp4", values.caption, postData.hashtags || []);
+          try {
+            const response = await postToPlatform(platform, videoFileName || "video.mp4", values.caption, postData.hashtags || []);
+            if(response.success) {
+               toast({
+                title: `Posted to ${platform.name}!`,
+                description: response.message,
+                variant: "default",
+              });
+            } else {
+              toast({
+                title: `Failed to post to ${platform.name}`,
+                description: response.message,
+                variant: "destructive",
+              });
+            }
+          } catch (error) {
+             toast({
+                title: `Error posting to ${platform.name}`,
+                description: error instanceof Error ? error.message : "An unknown error occurred.",
+                variant: "destructive",
+              });
+          }
         }
       }
-      toast({
-        title: "Post Submitted!",
-        description: `Your post has been submitted to ${postData.platforms.join(', ')}.`,
-        variant: "default",
-      });
     }
     form.reset();
     setVideoPreview(null);
@@ -146,7 +163,7 @@ export function AIOPostForm() {
   }
 
   return (
-    <Form {...form}>
+    <ShadcnForm {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <GlassCard>
           <FormField
@@ -199,7 +216,7 @@ export function AIOPostForm() {
                     const isSelected = field.value?.includes(platform.id);
                     const platformLabelId = `platform-label-${platform.id}`;
                     return (
-                      <FormItem // This is now a layout component, not a RHF FormField
+                      <div 
                         key={platform.id}
                         className={cn(
                           "flex flex-col items-center space-y-2 p-4 rounded-lg border transition-all cursor-pointer",
@@ -214,32 +231,52 @@ export function AIOPostForm() {
                             : [...currentValues, platform.id];
                           field.onChange(newValue);
                         }}
+                        role="checkbox" 
+                        aria-checked={isSelected}
+                        tabIndex={0} 
+                        onKeyDown={(e) => {
+                           if (e.key === ' ' || e.key === 'Enter') {
+                             e.preventDefault();
+                             const currentValues = field.value || [];
+                             const newValue = isSelected
+                               ? currentValues.filter((id) => id !== platform.id)
+                               : [...currentValues, platform.id];
+                             field.onChange(newValue);
+                           }
+                        }}
+                        aria-labelledby={platformLabelId}
                       >
                         <platform.Icon className={cn("w-8 h-8", isSelected ? platform.textColorClass : 'text-muted-foreground')} />
-                        <FormLabel 
+                        <span 
                           id={platformLabelId}
                           className={cn(
-                            "text-sm font-medium cursor-pointer", // Ensure label also has cursor-pointer
+                            "text-sm font-medium select-none", 
                             isSelected ? 'text-primary' : 'text-foreground/80'
                           )}
                         >
                           {platform.name}
-                        </FormLabel>
-                        <FormControl>
-                           <Switch
-                            checked={isSelected}
-                            onCheckedChange={(checked) => {
-                               const currentValues = field.value || [];
-                               const newValue = checked
-                                 ? [...currentValues, platform.id]
-                                 : currentValues.filter((id) => id !== platform.id);
-                               field.onChange(newValue);
-                            }}
-                            className="sr-only"
-                            aria-labelledby={platformLabelId}
-                           />
-                        </FormControl>
-                      </FormItem>
+                        </span>
+                         <Controller
+                            name="selectedPlatforms" // This should still target the main form field
+                            control={form.control}
+                            render={({ field: controllerField }) => ( // Ensure we use a different name for the render prop field
+                                <Switch
+                                    checked={isSelected}
+                                    // The onCheckedChange should trigger the same logic as onClick for the div
+                                    onCheckedChange={(checked) => {
+                                        const currentValues = controllerField.value || [];
+                                        const newValue = checked
+                                            ? [...currentValues, platform.id]
+                                            : currentValues.filter((id) => id !== platform.id);
+                                        controllerField.onChange(newValue);
+                                    }}
+                                    className="sr-only" 
+                                    aria-hidden="true" 
+                                    tabIndex={-1}
+                                />
+                            )}
+                          />
+                      </div>
                     );
                   })}
                 </div>
@@ -396,18 +433,17 @@ export function AIOPostForm() {
             disabled={form.formState.isSubmitting}
             className="bg-gradient-to-r from-primary to-[hsl(var(--accent))] hover:opacity-90 text-primary-foreground shadow-lg px-8 py-3 text-base font-semibold rounded-lg transition-opacity"
           >
-            {isScheduled ? (
-              <>
-                <Clock className="mr-2 h-5 w-5" /> Schedule
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-5 w-5" /> Post Now
-              </>
+            {form.formState.isSubmitting ? "Submitting..." : (
+              isScheduled ? (
+                <><Clock className="mr-2 h-5 w-5" /> Schedule</>
+              ) : (
+                <><Send className="mr-2 h-5 w-5" /> Post Now</>
+              )
             )}
           </Button>
         </div>
       </form>
-    </Form>
+    </ShadcnForm>
   );
 }
+
