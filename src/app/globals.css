@@ -55,10 +55,40 @@
     background-attachment: fixed; /* Ensures gradient covers the whole viewport */
     min-height: 100vh;
     font-feature-settings: "rlig" 1, "calt" 1; /* Enable common ligatures */
+    letter-spacing: -0.01em; /* Slight negative tracking for modern look */
   }
 
   * {
     @apply border-border;
+  }
+  
+  /* Improved Typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+    letter-spacing: -0.02em;
+  }
+  
+  h1 {
+    @apply text-4xl md:text-5xl leading-tight;
+    font-weight: 700;
+  }
+  
+  h2 {
+    @apply text-3xl md:text-4xl;
+    font-weight: 600;
+  }
+  
+  h3 {
+    @apply text-2xl md:text-3xl;
+    font-weight: 600;
+  }
+  
+  p {
+    @apply text-base md:text-lg leading-relaxed;
+  }
+  
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
   }
 }
 
@@ -78,5 +108,9 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--secondary));
+  }
+  
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
   }
 }

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, ChevronLeft, ChevronRight, CalendarDays, Loader2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, CalendarDays, Loader2, ClipboardList } from 'lucide-react';
 import type { ScheduledPost, PlatformID } from '@/types';
 import { PLATFORMS } from '@/config/platforms';
 import { addMonths, subMonths, format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from 'date-fns';
@@ -15,34 +14,11 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
-// Mock data - replace with actual data fetching (user-specific if applicable)
-const MOCK_POSTS: ScheduledPost[] = [
-  {
-    id: '1',
-    title: 'TikTok Fun',
-    videoUrl: 'tiktok.mp4',
-    caption: 'My new TikTok dance!',
-    hashtags: ['#dance', '#tiktok'],
-    platforms: ['tiktok'],
-    scheduledAt: new Date(new Date().setDate(new Date().getDate() + 2)),
-  },
-  {
-    id: '2',
-    title: 'Insta Story Teaser',
-    videoUrl: 'insta.mp4',
-    caption: 'Behind the scenes...',
-    hashtags: ['#bts', '#newproject'],
-    platforms: ['instagram', 'facebook'],
-    scheduledAt: new Date(new Date().setDate(new Date().getDate() + 5)),
-  },
-];
-
 const GlassCard: React.FC<React.PropsWithChildren<{ className?: string }>> = ({ children, className }) => (
   <div className={cn("bg-card/60 backdrop-blur-md border border-[hsl(var(--border)/0.3)] rounded-xl shadow-xl", className)}>
     {children}
   </div>
 );
-
 
 export default function CalendarPage() {
   const { user, loadingAuth } = useAuth();
@@ -65,19 +41,16 @@ export default function CalendarPage() {
   }, [user, loadingAuth, router]);
 
   useEffect(() => {
-    if (user) { // Only fetch posts if user is authenticated
-      // Simulate fetching data
-      setTimeout(() => {
-        setScheduledPosts(MOCK_POSTS);
-        setIsLoadingPosts(false);
-      }, 500);
+    if (user) {
+      // In a real implementation, you would fetch the user's scheduled posts here
+      // For now, we'll just set an empty array and turn off loading
+      setScheduledPosts([]);
+      setIsLoadingPosts(false);
     } else {
-      // If no user, clear posts and set loading to false (or handle as needed)
       setScheduledPosts([]);
       setIsLoadingPosts(false);
     }
-  }, [user]); // Rerun when user state changes
-
+  }, [user]);
 
   const daysInMonth = eachDayOfInterval({
     start: startOfMonth(currentMonth),
@@ -107,7 +80,7 @@ export default function CalendarPage() {
     return PLATFORMS.find(p => p.id === platformId)?.bgColorClass || 'bg-muted';
   };
   
-  if (loadingAuth || (!user && !loadingAuth)) { // Show loader if auth is loading or if user is null (and not loading, meaning redirect is imminent)
+  if (loadingAuth || (!user && !loadingAuth)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -127,9 +100,8 @@ export default function CalendarPage() {
     );
   }
 
-
   return (
-    <div className="space-y-8">
+    <div className="container max-w-6xl py-8 space-y-8">
       <GlassCard className="p-6">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
           <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent mb-4 sm:mb-0">
@@ -188,30 +160,15 @@ export default function CalendarPage() {
               <div className="mt-6 space-y-1">
                 {postsForDay(day).map(post => (
                   <div key={post.id} className="p-1.5 rounded text-xs text-white truncate bg-opacity-80 shadow" style={{backgroundColor: PLATFORMS.find(p=>p.id === post.platforms[0])?.color || 'gray'}}>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <span className="cursor-pointer hover:underline">{post.title || post.caption.substring(0,20)+'...'}</span>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-64 bg-popover/90 backdrop-blur-md p-4">
-                        <h4 className="font-semibold mb-1">{post.title || 'Scheduled Post'}</h4>
-                        <p className="text-xs text-muted-foreground mb-2">{format(post.scheduledAt, 'PP p')}</p>
-                        <p className="text-sm mb-2 truncate">{post.caption}</p>
-                        <div className="flex flex-wrap gap-1">
-                          {post.platforms.map(platformId => (
-                            <span key={platformId} className={cn("px-1.5 py-0.5 rounded-full text-xs text-white", getPlatformColor(platformId))}>
-                              {PLATFORMS.find(p => p.id === platformId)?.name}
-                            </span>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    {post.title || post.caption.substring(0,20)+'...'}
                   </div>
                 ))}
               </div>
             </div>
           ))}
         </div>
-        {/* Mobile Calendar List View */}
+        
+        {/* Mobile Calendar View */}
         <div className="md:hidden space-y-4 mt-4">
            <Calendar
             mode="single"
@@ -225,64 +182,57 @@ export default function CalendarPage() {
               day_today: "bg-accent text-accent-foreground",
               caption_label: "text-lg",
             }}
-            components={{
-              DayContent: ({ date }) => {
-                if (!date) return <></>;
-                const dailyPosts = postsForDay(date); 
-                return (
-                  <>
-                    <span>{format(date, 'd')}</span>
-                    {dailyPosts.length > 0 && (
-                      <div className="flex justify-center mt-1">
-                        {dailyPosts.slice(0,3).map(p => (
-                           <div key={p.id} className={cn("w-1.5 h-1.5 rounded-full mx-px", getPlatformColor(p.platforms[0]))}></div>
-                        ))}
-                         {dailyPosts.length > 3 && <div className="w-1.5 h-1.5 rounded-full bg-muted mx-px"></div>}
-                      </div>
-                    )}
-                  </>
-                );
-              },
-            }}
           />
-           {selectedDate && postsForDay(selectedDate).length > 0 && (
-            <GlassCard className="p-4 mt-4">
-              <h3 className="text-lg font-semibold mb-2">{format(selectedDate, 'MMMM d, yyyy')}</h3>
-              <ul className="space-y-2">
-                {postsForDay(selectedDate).map(post => (
-                  <li key={post.id} className="p-3 rounded-md border border-[hsl(var(--border)/0.2)] bg-background/70">
-                    <h4 className="font-semibold">{post.title || post.caption.substring(0,30)+'...'}</h4>
-                    <p className="text-xs text-muted-foreground mb-1">{format(post.scheduledAt, 'p')}</p>
-                    <div className="flex flex-wrap gap-1">
-                      {post.platforms.map(platformId => (
-                        <span key={platformId} className={cn("px-2 py-0.5 rounded-full text-xs text-white", getPlatformColor(platformId))}>
-                          {PLATFORMS.find(p => p.id === platformId)?.name}
-                        </span>
-                      ))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </GlassCard>
-          )}
-          {selectedDate && postsForDay(selectedDate).length === 0 && (
-             <GlassCard className="p-4 mt-4 text-center">
-               <p className="text-muted-foreground">No posts scheduled for {format(selectedDate, 'MMMM d, yyyy')}.</p>
-             </GlassCard>
-          )}
         </div>
       </GlassCard>
 
-      <Link href="/" passHref>
-        <Button
-          variant="default"
-          size="lg"
-          className="fixed bottom-8 right-8 rounded-full p-4 h-16 w-16 shadow-xl bg-gradient-to-br from-primary to-accent hover:opacity-90 text-primary-foreground"
-          aria-label="Create new post"
-        >
-          <Plus className="h-8 w-8" />
-        </Button>
-      </Link>
+      {/* Empty state or day detail view */}
+      {scheduledPosts.length === 0 ? (
+        <GlassCard className="p-8 text-center">
+          <div className="flex flex-col items-center justify-center py-8">
+            <ClipboardList className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
+            <h2 className="text-2xl font-medium mb-2">No scheduled posts yet</h2>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Your scheduled posts will appear here. Create posts from the dashboard and set a schedule date to see them on your calendar.
+            </p>
+            <Button asChild className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-primary-foreground">
+              <Link href="/dashboard">
+                <Plus className="h-4 w-4 mr-2" /> Create a Post
+              </Link>
+            </Button>
+          </div>
+        </GlassCard>
+      ) : selectedDate && postsForDay(selectedDate).length > 0 ? (
+        <GlassCard className="p-6">
+          <h3 className="text-xl font-semibold mb-4">{format(selectedDate, 'MMMM d, yyyy')}</h3>
+          <div className="space-y-4">
+            {postsForDay(selectedDate).map(post => (
+              <Card key={post.id} className="bg-background/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">{post.title || 'Scheduled Post'}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-1">{format(post.scheduledAt, 'p')}</p>
+                  <p className="mb-2">{post.caption}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {post.platforms.map(platformId => (
+                      <span key={platformId} className={cn("px-2 py-1 rounded-full text-xs text-white", getPlatformColor(platformId))}>
+                        {PLATFORMS.find(p => p.id === platformId)?.name}
+                      </span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </GlassCard>
+      ) : (
+        <GlassCard className="p-6 text-center">
+          <p className="text-muted-foreground py-4">
+            No posts scheduled for {format(selectedDate, 'MMMM d, yyyy')}
+          </p>
+        </GlassCard>
+      )}
     </div>
   );
 }
